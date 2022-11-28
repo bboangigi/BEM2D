@@ -10,6 +10,8 @@ Implicit None
     Double Precision, PARAMETER :: PI05 = 0.5D0 * PI
     Double Precision, PARAMETER :: PI2  = 2.D0  * PI
 
+    Complex(8), Parameter       :: ZI = DCMPLX(0.D0, 1.0d0)
+
 !! ---------------------------------------------------------------------
 Contains
 !! ---------------------------------------------------------------------

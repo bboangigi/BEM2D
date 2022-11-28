@@ -7,12 +7,11 @@ Module SOLVE_M
 !! ---------------------------------------------------------------------
 Contains
 !! ---------------------------------------------------------------------
-      SUBROUTINE SOLVE(NB, NT, MX, NP, NQ, NEQ, AKB, SML, ZI, XP, YP, XQ, YQ, VN)
+      SUBROUTINE SOLVE(NB, NT, MX, NP, NQ, NEQ, AKB, SML, XP, YP, XQ, YQ, VN)
       Implicit None
 !! -----------Input variables from app2DBEM_OSAKA-----------------------
       Integer, Intent(in)          :: NB, NT, MX, NP, NQ, NEQ     ! from app2DBEM_OSAKA
       Double Precision, Intent(in) :: AKB, SML                    ! from app2DBEM_OSAKA
-      Double Precision, Intent(in) :: ZI 
 !! -----------Variables declaration in SOLVE subroutine-----------------
       Integer :: I, J, K, M
 
@@ -31,7 +30,7 @@ Contains
        Complex(8), Allocatable :: ZS(:), ZD(:)
        Double Precision, Allocatable :: SS(:), DD(:)
 
-       Allocate(ZSA(MX,NP), ZSB(MX,NEQ), ZAA(NP,NP), ZBB(NP,NEQ), ZFI(NEQ,NP))       
+       Allocate(ZSA(MX,NP), ZSB(MX,NEQ), ZAA(NP,NP), ZBB(NP,NEQ), ZFI(NEQ,NP))
        Allocate(ZS(NP), ZD(NP), SS(NP), DD(NP))
 
 !       Complex(8) :: ZAA, ZSA, Z0, ZI, ZFI, ZBB, ZSB, ZS, ZD
@@ -49,44 +48,63 @@ Contains
       40 ZSA(I,J)=(0.0d0)
       DO 50 M=1,NEQ
       50 ZSB(I,M)=(0.0d0)
-      IF(I.LE.NB) ZSA(I,I)=CMPLX(PI,0.0D0)
+      IF(I.LE.NB) ZSA(I,I)=DCMPLX(PI,0.0D0)
       30 CONTINUE
 !! -------------------------------------------------
-      DO 100 I=1,NT
-      Call SDSUB(MX, NP, NEQ, NQ, NB, XP, YP, XQ, YQ, VN, XPI, YPI, SS, DD)
-      Call SDCAL(MX, NP, NEQ, NQ, NB, AKB, XPI, YPI, ZI, ZS, ZD)
+      DO I=1,NT
 
-      DO 110 J=1,NB
-      ZSA(I,J)=ZSA(I,J)+DD(J)+ZD(J)
-      110 CONTINUE
+            XPI = XP(I)
+            YPI = YP(I)
 
-      DO 120 M=1,3
-      DO 120 J=1,NB
-      ZSB(I,M)=ZSB(I,M)+(SS(J)+ZS(J))*VN(M,J)
-      120 CONTINUE
-      ZSB(I,4)=PI2*EXP(-AKB*(YP(I)-ZI*XP(I)))
-      100 CONTINUE
+            Call SDSUB(MX, NP, NEQ, NQ, NB, XP, YP, XQ, YQ, VN, XPI, YPI, SS, DD)
+            Call SDCAL(MX, NP, NEQ, NQ, NB, AKB, XPI, YPI, XQ, YQ, ZS, ZD)
 
-      DO 200 I=1,NB
-      DO 210 J=1,NB
-      DO 210 K=1,NT
-      ZAA(I,J)=ZAA(I,J)+ZSA(K,I)*ZSA(K,J)
-      210 CONTINUE
-      DO 220 M=1,NEQ
-      DO 220 K=1,NT
-      ZBB(I,M)=ZBB(I,M)+ZSA(K,I)*ZSB(K,M)
-      220 CONTINUE
-      200 CONTINUE
+            DO J=1,NB
+                  ZSA(I,J)=ZSA(I,J)+DD(J)+ZD(J)
+            End Do
+
+            DO M=1,3
+                  DO J=1,NB
+                        ZSB(I,M)=ZSB(I,M)+(SS(J)+ZS(J))*VN(M,J)
+                  End Do
+            End do
+
+            ZSB(I,4)=PI2*ZEXP(-AKB*(YP(I)-ZI*XP(I)))
+
+      End Do
+
+      DO I=1,NB
+            DO J=1,NB
+            DO K=1,NT
+                  ZAA(I,J)=ZAA(I,J)+ZSA(K,I)*ZSA(K,J)
+            End do
+            end do
+
+            DO M=1,NEQ
+            DO K=1,NT
+                  ZBB(I,M)=ZBB(I,M)+ZSA(K,I)*ZSB(K,M)
+            End do
+            End do
+      End do
 
       CALL ZSWEEP(NP,NB,ZAA,ZBB,NEQ,SML)
-            IF(CDABS(ZAA(1,1)).LT.SML) WRITE(6,600)
-        600 FORMAT(//10X,'*** ERROR: ZSWEEP IN SUBROUTINE (SOLVE)', &
-              ' WAS ABNORMALLY DONE.',/23X,'PLEASE CHECK!'///)
 
-      DO 250 M=1,NEQ
-      DO 250 I=1,NB
-      ZFI(M,I)=ZBB(I,M)
-      250 CONTINUE
+      IF(CDABS(ZAA(1,1)).LT.SML) WRITE(6,600)
+      600 FORMAT(//10X,'*** ERROR: ZSWEEP IN SUBROUTINE (SOLVE)', &
+            ' WAS ABNORMALLY DONE.',/23X,'PLEASE CHECK!'///)
+
+      DO M=1,NEQ
+      DO I=1,NB
+            ZFI(M,I)=ZBB(I,M)
+      End do
+      End do
+
+      ! write(*,*)
+      ! DO I=1,NB
+      !     write(*,"(i5,99(1pe12.4))") i, (ZFI(M,I), m = 1, NEQ)
+      ! End do
+      ! read(*,*)
+
       RETURN
       END Subroutine
 !
@@ -94,7 +112,7 @@ Contains
 !!! ---------------------------------------------------------------------
       SUBROUTINE SDSUB(MX, NP, NEQ, NQ, NB, XP, YP, XQ, YQ, VN, XPI, YPI, SS, DD)
       !     Kernel Function: Rankine Source
-      
+
       ! Implicit None
       ! IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 !! -----------Input variables from app2DBEM_OSAKA------------------------------
@@ -106,13 +124,14 @@ Contains
       Double Precision :: DX, DY, D, SL, CDEL, SDEL, COEF, XA, XB, YA, YB, SUBA, SUBB, WA1, WA2, WA3, ABSC, SWA, DWA
 !! -----------Input variables&arrays from OFFSET_M-----------------------------
       Double Precision, Allocatable :: XP(:), YP(:), XQ(:), YQ(:)
-      Double Precision, Allocatable :: VN(:,:)      
+      Double Precision, Allocatable :: VN(:,:)
 !! ----------Arrays declaration in SDSUB subroutine----------------------------
       Double Precision, Allocatable :: SS(:), DD(:)
 
-            DO 100 J=1,NB
+      DO 100 J=1,NB
             SWA=0.0D0
             DWA=0.0D0
+
             IF(DABS(YPI).LT.1.0D-8) GOTO 10
             DX=XQ(J+1)-XQ(J)
             DY=YQ(J+1)-YQ(J)
@@ -150,45 +169,48 @@ Contains
             END Subroutine
 !!! ---------------------------------------------------------------------
 !! ---------------------------------------------------------------------
-      SUBROUTINE SDCAL(MX, NP, NEQ, NQ, NB, XPI, YPI, ZI, ZS, ZD)
+      SUBROUTINE SDCAL(MX, NP, NEQ, NQ, NB, AKB, XPI, YPI, XQ, YQ, ZS, ZD)
       !     Kernel Function: Wave Term
 !! -----------Input variables from app2DBEM_OSAKA------------------------------
       Integer :: MX, NP, NEQ, NQ, NB
       Double Precision :: AKB
 !! -----------Input variables in SDSUB-----------------------------------------
       Integer :: J, L
-      Double Precision :: XPI, YPI, ZI
+      Double Precision :: XPI, YPI
+      Double Precision, Allocatable :: XQ(:), YQ(:)
 !! -----------Input variables in SDCAL-----------------------------------------
       Double Precision :: XX, YY, XE, YE, RFL1, RFT1, RFL2, RFT2, EC, ES, SUB
       Double Precision :: DX, DY, D, CDEL, SDEL, SGNX
       Complex(8) :: ZETA, ZFC1, ZFC2, ZFS1, ZFS2, ZSUB
 !! -----------Input variables&arrays from OFFSET_M-----------------------------
-      Double Precision, Allocatable :: XP(:), YP(:), XQ(:), YQ(:)
-      Double Precision, Allocatable :: VN(:,:)      
+      Double Precision, Allocatable :: XP(:), YP(:)
+      Double Precision, Allocatable :: VN(:,:)
 !! -----------Input variables in SDSUB-----------------------------------------
       Double Precision, Allocatable :: SS(:), DD(:)
 
-!! ----------Arrays declaration in SDCAL subroutine----------------------------      
+!! ----------Arrays declaration in SDCAL subroutine----------------------------
       Complex(8), Allocatable :: ZS(:), ZD(:)
       ! DIMENSION ZS(NB),ZD(NB)
 
-            DO 100 J=1,NB
-            ZS(J)=(0.0D0)
-            ZD(J)=(0.0D0)
+      DO 100 J=1,NB
+            ZS(J) = DCMPLX(0.0D0, 0.d0)
+            ZD(J) = DCMPLX(0.0D0, 0.d0)
       100 CONTINUE
 
-            XX=XPI-XQ(1)
-            YY=YPI+YQ(1)
-            SGNX=DSIGN(1.0D0,XX)
-            IF(DABS(XX).LT.1.0D-10) SGNX=0.0D0
-            XE=-AKB*YY
-            YE=-AKB*DABS(XX)
-            ZETA=CMPLX(XE,YE)
+      XX=XPI-XQ(1)
+      YY=YPI+YQ(1)
+
+      SGNX=DSIGN(1.0D0,XX)
+      IF(DABS(XX).LT.1.0D-10) SGNX=0.0D0
+      XE=-AKB*YY
+      YE=-AKB*DABS(XX)
+      ZETA=CMPLX(XE,YE)
+
             CALL EZE1Z(XE,YE,EC,ES)
             RFL1=0.5D0*DLOG(XX**2+YY**2)
             RFT1=DATAN2(YY,XX)
-            ZFC1= EC-PI*EXP(ZETA)*ZI
-            ZFS1=(ES-PI*EXP(ZETA))*SGNX
+            ZFC1= EC-PI*ZEXP(ZETA)*ZI
+            ZFS1=(ES-PI*ZEXP(ZETA))*SGNX
 
             DO 200 J=1,NB
             XX=XPI-XQ(J+1)
@@ -221,143 +243,144 @@ Contains
             RETURN
             END Subroutine
 !! ---------------------------------------------------------------------
-!!! !! ---------------------------------------------------------------------
-! SUBROUTINE ZSWEEP(NDIM,N,ZA,ZB,NEQ,EPS)
-!
-!      IMPLICIT DOUBLE PRECISION (A-H,O-Y)
-!      IMPLICIT COMPLEX*16 (Z)
-!
-!      Integer :: I, J, K, N, NDIM, NEQ, IP
-!
-!      DIMENSION ZA(NDIM,NDIM), ZB(NDIM,NEQ)
-!
-!!       Implicit None
-!!       Complex(16), Allocatable :: ZA(:,:), ZB(:,:)
-!!       Double Precision, Intent(in) :: EPS
 !! !! ---------------------------------------------------------------------
-!!       ! Integer, parameter :: MX=105, NP=100, NQ=101, NEQ=4
-!!       ! Double Precision, Parameter :: SML = 1.0D-14
-!!
-!!       Allocate(ZA(NDIM,NDIM), ZB(NDIM,NEQ))
-!!
-!!       ! Allocate(ZSA(MX,NP), ZSB(MX,NEQ), ZAA(NP,NP), ZBB(NP,NEQ))
-!!       ! Allocate(ZS(NP), SS(NP), DD(NP))
+SUBROUTINE ZSWEEP(NDIM,N,ZA,ZB,NEQ,EPS)
+
+     IMPLICIT DOUBLE PRECISION (A-H,O-Y)
+     IMPLICIT COMPLEX*16 (Z)
+
+     Integer :: I, J, K, N, NDIM, NEQ, IP
+
+     DIMENSION ZA(NDIM,NDIM), ZB(NDIM,NEQ)
+
+!       Implicit None
+!       Complex(16), Allocatable :: ZA(:,:), ZB(:,:)
+!       Double Precision, Intent(in) :: EPS
+! !! ---------------------------------------------------------------------
+!       ! Integer, parameter :: MX=105, NP=100, NQ=101, NEQ=4
+!       ! Double Precision, Parameter :: SML = 1.0D-14
 !
-!       ! DIMENSION ZA(NDIM,NDIM), ZB(NDIM,NEQ)
+!       Allocate(ZA(NDIM,NDIM), ZB(NDIM,NEQ))
 !
-!       DO 5 K=1,N
-!       P=0.0D0
-!       DO 1 I=K,N
-!       IF(P.GE.CDABS(ZA(I,K))) GOTO 1
-!       P=CDABS(ZA(I,K))
-!       IP=I
-!     1 CONTINUE
-!       IF(P.LE.EPS) GOTO 6
-!       IF(IP.EQ.K)  GOTO 7
-!         DO 2 J=K,N
-!         ZW=ZA(K,J)
-!         ZA(K,J)=ZA(IP,J)
-!     2   ZA(IP,J)=ZW
-!           DO 20 J=1,NEQ
-!           ZW=ZB(K,J)
-!           ZB(K,J)=ZB(IP,J)
-!    20     ZB(IP,J)=ZW
-!     7 CONTINUE
-!       IF(K.EQ.N) GOTO 70
-!       DO 3 J=K+1,N
-!     3 ZA(K,J)=ZA(K,J)/ZA(K,K)
-!    70   DO 30 J=1,NEQ
-!    30   ZB(K,J)=ZB(K,J)/ZA(K,K)
-!       DO 5 I=1,N
-!       IF(I.EQ.K) GOTO 5
-!       IF(K.EQ.N) GOTO 40
-!         DO 4 J=K+1,N
-!     4   ZA(I,J)=ZA(I,J)-ZA(I,K)*ZA(K,J)
-!    40   CONTINUE
-!         DO 45 J=1,NEQ
-!    45   ZB(I,J)=ZB(I,J)-ZA(I,K)*ZB(K,J)
-!     5 CONTINUE
-!       ZA(1,1)=(1.0D0,0.0D0)
-!       RETURN
-!     6 ZA(1,1)=CMPLX(DABS(P),0.0D0)
-!       RETURN
-!       END Subroutine
-!!!---------------------------------------------------------------------
-!!! --------------------------------------------------------------------
-! SUBROUTINE EZE1Z_S(XX,YY,EC,ES)
-!       IMPLICIT DOUBLE PRECISION (A-H,O-Y)
-!       IMPLICIT COMPLEX*16 (Z)
-!       DOUBLE PRECISION  NEW
-!
-!       Integer :: J, N
-!
-!       DATA GAMMA /0.5772156649015D0/
-!
-!       X =XX
-!       Y =DABS(YY)
-!       R =DSQRT(X*X+Y*Y)
-!       C =DATAN2(Y,X)
-!
-!       IF(R.GT.25.0D0)  GO TO 30
-!       IF(X.GT.0.0D0.AND.R.GT.8.0D0)  GO TO 20
-!       IF(X.LE.0.0D0.AND.Y.GT.10.0D0) GO TO 20
-!
-!       ER=-GAMMA-DLOG(R)+R*DCOS(C)
-!       EI=-C+R*DSIN(C)
-!       SB=-R
-!         DO 100 N=2,100
-! 	    FN=DFLOAT(N)
-! 	    CN=C*FN
-! 	    SB=-SB*R*(FN-1.0D0)/FN/FN
-! 	    ER=ER-SB*DCOS(CN)
-! 	    EI=EI-SB*DSIN(CN)
-! 	    IF(N.EQ.100)  GO TO 1
-! 	    IF(EI.EQ.0.0D0)  GO TO 10
-!         IF(DABS(SB/EI).LE.1.0D-8) GO TO 10
-! 	      GO TO 100
-!    10   IF(DABS(SB/ER).LE.1.0D-8) GO TO 1
-!   100   CONTINUE
-!     1 CC=DEXP(X)*DCOS(Y)
-!       SS=DEXP(X)*DSIN(Y)
-!       EC=CC*ER-SS*EI
-!       ES=CC*EI+SS*ER
-!       IF(YY.LT.0.0D0) ES=-ES
-!       RETURN
-!
-!    20 Z =CMPLX(X,Y)
-!       Z1=(1.0D0,0.0D0)
-!       ZSUB=(10.0D0,0.0D0)
-!       ZS  =Z+ZSUB/(Z1+ZSUB/Z)
-!         DO 200 J=1,9
-! 	      ZSUB=CMPLX(DFLOAT(10-J),0.0D0)
-!         ZS  =Z+ZSUB/(Z1+ZSUB/ZS)
-!   200   CONTINUE
-!       ZSUB=Z1/ZS
-!       EC=DREAL(ZSUB)
-!       ES=DIMAG(ZSUB)
-!       IF(YY.LT.0.0D0) ES=-ES
-!       RETURN
-!
-!    30 OLD=-1.0D0/R
-!       EXC=OLD*DCOS(C)
-!       EXS=OLD*DSIN(C)
-!         DO 300 N=2,100
-! 	      NEW=-OLD/R*DFLOAT(N-1)
-! 	      IF(EXS.EQ.0.0D0) GO TO 31
-! 	      IF(DABS(NEW/EXS).LE.1.0D-8) GO TO 31
-! 	      GO TO 32
-!    31   IF(EXC.EQ.0.0D0) GO TO 32
-!         IF(DABS(NEW/EXC).LE.1.0D-8) GO TO 33
-!    32   IF(DABS(OLD).LT.DABS(NEW))  GO TO 33
-!         OLD=NEW
-! 	      EXC=EXC+OLD*DCOS(C*DFLOAT(N))
-!         EXS=EXS+OLD*DSIN(C*DFLOAT(N))
-!   300   CONTINUE
-!    33 EC=-EXC
-!       ES=EXS
-!       IF(DABS(PI-DABS(C)).LT.1.0D-10) ES=-PI*DEXP(X)
-!       IF(YY.LT.0.0D0) ES=-ES
-!       RETURN
-!       END Subroutine
-!!! --------------------------------------------------------------------
+!       ! Allocate(ZSA(MX,NP), ZSB(MX,NEQ), ZAA(NP,NP), ZBB(NP,NEQ))
+!       ! Allocate(ZS(NP), SS(NP), DD(NP))
+
+      ! DIMENSION ZA(NDIM,NDIM), ZB(NDIM,NEQ)
+
+      DO 5 K=1,N
+      P=0.0D0
+      DO 1 I=K,N
+      IF(P.GE.CDABS(ZA(I,K))) GOTO 1
+      P=CDABS(ZA(I,K))
+      IP=I
+    1 CONTINUE
+      IF(P.LE.EPS) GOTO 6
+      IF(IP.EQ.K)  GOTO 7
+        DO 2 J=K,N
+        ZW=ZA(K,J)
+        ZA(K,J)=ZA(IP,J)
+    2   ZA(IP,J)=ZW
+          DO 20 J=1,NEQ
+          ZW=ZB(K,J)
+          ZB(K,J)=ZB(IP,J)
+   20     ZB(IP,J)=ZW
+    7 CONTINUE
+      IF(K.EQ.N) GOTO 70
+      DO 3 J=K+1,N
+    3 ZA(K,J)=ZA(K,J)/ZA(K,K)
+   70   DO 30 J=1,NEQ
+   30   ZB(K,J)=ZB(K,J)/ZA(K,K)
+      DO 5 I=1,N
+      IF(I.EQ.K) GOTO 5
+      IF(K.EQ.N) GOTO 40
+        DO 4 J=K+1,N
+    4   ZA(I,J)=ZA(I,J)-ZA(I,K)*ZA(K,J)
+   40   CONTINUE
+        DO 45 J=1,NEQ
+   45   ZB(I,J)=ZB(I,J)-ZA(I,K)*ZB(K,J)
+    5 CONTINUE
+      ZA(1,1)=(1.0D0,0.0D0)
+      RETURN
+    6 ZA(1,1)=CMPLX(DABS(P),0.0D0)
+      RETURN
+      END Subroutine
+!!---------------------------------------------------------------------
+!! --------------------------------------------------------------------
+SUBROUTINE EZE1Z(XX,YY,EC,ES)
+      ! Implicit None
+      IMPLICIT DOUBLE PRECISION (A-H,O-Y)
+      IMPLICIT COMPLEX*16 (Z)
+      DOUBLE PRECISION  NEW
+
+      Integer :: J, N
+
+      DATA GAMMA /0.5772156649015D0/
+
+      X =XX
+      Y =DABS(YY)
+      R =DSQRT(X*X+Y*Y)
+      C =DATAN2(Y,X)
+
+      IF(R.GT.25.0D0)  GO TO 30
+      IF(X.GT.0.0D0.AND.R.GT.8.0D0)  GO TO 20
+      IF(X.LE.0.0D0.AND.Y.GT.10.0D0) GO TO 20
+
+      ER=-GAMMA-DLOG(R)+R*DCOS(C)
+      EI=-C+R*DSIN(C)
+      SB=-R
+        DO 100 N=2,100
+	    FN=DFLOAT(N)
+	    CN=C*FN
+	    SB=-SB*R*(FN-1.0D0)/FN/FN
+	    ER=ER-SB*DCOS(CN)
+	    EI=EI-SB*DSIN(CN)
+	    IF(N.EQ.100)  GO TO 1
+	    IF(EI.EQ.0.0D0)  GO TO 10
+        IF(DABS(SB/EI).LE.1.0D-8) GO TO 10
+	      GO TO 100
+   10   IF(DABS(SB/ER).LE.1.0D-8) GO TO 1
+  100   CONTINUE
+    1 CC=DEXP(X)*DCOS(Y)
+      SS=DEXP(X)*DSIN(Y)
+      EC=CC*ER-SS*EI
+      ES=CC*EI+SS*ER
+      IF(YY.LT.0.0D0) ES=-ES
+      RETURN
+
+   20 Z =CMPLX(X,Y)
+      Z1=(1.0D0,0.0D0)
+      ZSUB=(10.0D0,0.0D0)
+      ZS  =Z+ZSUB/(Z1+ZSUB/Z)
+        DO 200 J=1,9
+	      ZSUB=CMPLX(DFLOAT(10-J),0.0D0)
+        ZS  =Z+ZSUB/(Z1+ZSUB/ZS)
+  200   CONTINUE
+      ZSUB=Z1/ZS
+      EC=DREAL(ZSUB)
+      ES=DIMAG(ZSUB)
+      IF(YY.LT.0.0D0) ES=-ES
+      RETURN
+
+   30 OLD=-1.0D0/R
+      EXC=OLD*DCOS(C)
+      EXS=OLD*DSIN(C)
+        DO 300 N=2,100
+	      NEW=-OLD/R*DFLOAT(N-1)
+	      IF(EXS.EQ.0.0D0) GO TO 31
+	      IF(DABS(NEW/EXS).LE.1.0D-8) GO TO 31
+	      GO TO 32
+   31   IF(EXC.EQ.0.0D0) GO TO 32
+        IF(DABS(NEW/EXC).LE.1.0D-8) GO TO 33
+   32   IF(DABS(OLD).LT.DABS(NEW))  GO TO 33
+        OLD=NEW
+	      EXC=EXC+OLD*DCOS(C*DFLOAT(N))
+        EXS=EXS+OLD*DSIN(C*DFLOAT(N))
+  300   CONTINUE
+   33 EC=-EXC
+      ES=EXS
+      IF(DABS(PI-DABS(C)).LT.1.0D-10) ES=-PI*DEXP(X)
+      IF(YY.LT.0.0D0) ES=-ES
+      RETURN
+      END Subroutine
+!! --------------------------------------------------------------------
 End Module

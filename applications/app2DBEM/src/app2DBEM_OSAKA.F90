@@ -20,10 +20,9 @@ Program app2DBEM_OSAKA
 
 
 !! ----------Input Variables Argument related to SOLVE_M, Output text files----!!
-      Double Precision :: dk 
-      Complex(8) :: akb
+      Double Precision :: dk
+      Double Precision :: akb
       ! Variables related to SDSUB and SDCAL
-      Double Precision, Parameter :: ZI = 1.0d0
 
       Integer :: iK
       Integer, Parameter :: nK  = 300
