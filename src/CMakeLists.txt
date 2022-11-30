@@ -7,10 +7,8 @@ set(${ITEM_PREFIX}_SRC_${ITEM_NAME}
 
     lib2DBEM/OFFSET_M.F90
     lib2DBEM/SOLVE_M.F90
-   # lib2DBEM/SDSUB_S.F90
-   # lib2DBEM/SDCAL_S.F90
-   # lib2DBEM/ZSWEEP_S.F90
-   # lib2DBEM/EZE1Z_S.F90
+    lib2DBEM/FORCE_M.F90
+   # lib2DBEM/MOTION_M.F90
 )
 
 ##... Compile

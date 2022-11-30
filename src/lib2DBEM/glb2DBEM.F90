@@ -9,8 +9,9 @@ Implicit None
     Double Precision, PARAMETER :: PI   = datan(1.D0) * 4.D0
     Double Precision, PARAMETER :: PI05 = 0.5D0 * PI
     Double Precision, PARAMETER :: PI2  = 2.D0  * PI
-
-    Complex(8), Parameter       :: ZI = DCMPLX(0.D0, 1.0d0)
+    Double Precision, PARAMETER :: GAMMA = 0.5772156649015D0
+    Complex(8), PARAMETER       :: Z0 = DCMPLX(0.D0, 0.0d0)
+    Complex(8), PARAMETER       :: ZI = DCMPLX(0.D0, 1.0d0)
 
 !! ---------------------------------------------------------------------
 Contains

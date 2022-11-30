@@ -4,8 +4,8 @@ Module pkg2DBEM_OSAKA
     Use glb2DBEM
     Use OFFSET_M
     Use SOLVE_M
-    ! Use FORCE_M
-    ! Use MOTION_M
+    Use FORCE_M
+    Use MOTION_M
 !! -------------------------------------------------------------------------- !!
 Implicit None
 
